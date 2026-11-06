@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Услуган — поиск услуг</title>
+  <!-- Telegram WebApp JS -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Supabase JS (CDN) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --tg-theme-bg-color: #ffffff;
+      --tg-theme-secondary-bg-color: #f5f5f5;
+      --tg-theme-text-color: #000000;
+      --tg-theme-hint-color: #8e8e93;
+      --tg-theme-link-color: #007aff;
+      --tg-theme-button-color: #007aff;
+      --tg-theme-button-text-color: #ffffff;
+      --border-radius: 12px;
+      --shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    [data-theme="dark"] {
+      --tg-theme-bg-color: #1c1c1e;
+      --tg-theme-secondary-bg-color: #2c2c2e;
+      --tg-theme-text-color: #ffffff;
+      --tg-theme-hint-color: #8e8e93;
+      --tg-theme-link-color: #0a84ff;
+      --tg-theme-button-color: #0a84ff;
+      --tg-theme-button-text-color: #ffffff;
+      --shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: var(--tg-theme-bg-color);
+      color: var(--tg-theme-text-color);
+      min-height: 100vh;
+      padding-bottom: 70px;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .app {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* Шапка */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .role-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--tg-theme-button-color);
+      color: var(--tg-theme-button-text-color);
+      font-weight: 600;
+    }
+
+    /* Поиск */
+    .search-box {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      border-radius: var(--border-radius);
+      border: none;
+      background: var(--tg-theme-secondary-bg-color);
+      color: var(--tg-theme-text-color);
+      font-size: 15px;
+      outline: none;
+    }
+
+    .search-box .icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      opacity: 0.5;
+    }
+
+    /* Карточки */
+    .card {
+      background: var(--tg-theme-secondary-bg-color);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+      transition: transform 0.1s;
+    }
+
+    .card:active {
+      transform: scale(0.98);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--tg-theme-button-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--tg-theme-button-text-color);
+      flex-shrink: 0;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .card-subtitle {
+      font-size: 13px;
+      color: var(--tg-theme-hint-color);
+    }
+
+    .card-desc {
+      font-size: 14px;
+      color: var(--tg-theme-hint-color);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      background: var(--tg-theme-bg-color);
+      color: var(--tg-theme-hint-color);
+      border: 1px solid var(--tg-theme-hint-color);
+      opacity: 0.8;
+    }
+
+    /* Фильтры */
+    .filters {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+
+    .filters::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-chip {
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: var(--tg-theme-secondary-bg-color);
+      color: var(--tg-theme-text-color);
+      font-size: 13px;
+      white-space: nowrap;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .filter-chip.active {
+      background: var(--tg-theme-button-color);
+      color: var(--tg-theme-button-text-color);
+      border-color: var(--tg-theme-button-color);
+    }
+
+    /* Нижняя навигация */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--tg-theme-bg-color);
+      border-top: 1px solid var(--tg-theme-secondary-bg-color);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 12px;
+      background: none;
+      border: none;
+      color: var(--tg-theme-hint-color);
+      font-size: 11px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .nav-item .nav-icon {
+      font-size: 20px;
+    }
+
+    .nav-item.active {
+      color: var(--tg-theme-link-color);
+    }
+
+    /* Формы */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--tg-theme-hint-color);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--tg-theme-secondary-bg-color);
+      background: var(--tg-theme-secondary-bg-color);
+      color: var(--tg-theme-text-color);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      border-color: var(--tg-theme-button-color);
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      background: var(--tg-theme-button-color);
+      color: var(--tg-theme-button-text-color);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      width: 100%;
+    }
+
+    .btn:active {
+      opacity: 0.8;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--tg-theme-button-color);
+      color: var(--tg-theme-button-color);
+    }
+
+    .btn-danger {
+      background: #ff3b30;
+      color: #fff;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 13px;
+      width: auto;
+    }
+
+    /* Утилиты */
+    .hidden { display: none !important; }
+    .text-center { text-align: center; }
+    .text-hint { color: var(--tg-theme-hint-color); font-size: 13px; }
+    .mt-16 { margin-top: 16px; }
+    .mb-16 { margin-bottom: 16px; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .gap-8 { gap: 8px; }
+    .flex { display: flex; }
+    .flex-col { display: flex; flex-direction: column; }
+
+    /* Модалка */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 200;
+      animation: fadeIn 0.2s;
+    }
+
+    .modal {
+      background: var(--tg-theme-bg-color);
+      width: 100%;
+      max-width: 600px;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    /* Скелетон загрузки */
+    .skeleton {
+      background: linear-gradient(90deg, var(--tg-theme-secondary-bg-color) 25%, var(--tg-theme-bg-color) 50%, var(--tg-theme-secondary-bg-color) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Пустое состояние */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--tg-theme-hint-color);
+    }
+
+    .empty-state .emoji {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    /* Рейтинг */
+    .rating {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #ff9500;
+    }
+
+    /* Отзывы */
+    .review {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--tg-theme-secondary-bg-color);
+    }
+
+    .review:last-child {
+      border-bottom: none;
+    }
+
+    .review-author {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .review-text {
+      font-size: 14px;
+      color: var(--tg-theme-hint-color);
+      margin-top: 4px;
+    }
+
+    /* Переключатель */
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 28px;
+      background: var(--tg-theme-secondary-bg-color);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .toggle.active {
+      background: var(--tg-theme-button-color);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle.active::after {
+      transform: translateX(22px);
+    }
+
+    /* Бейдж статуса */
+    .status-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.pending {
+      background: #ff9500;
+      color: #fff;
+    }
+
+    .status-badge.approved {
+      background: #34c759;
+      color: #fff;
+    }
+
+    .status-badge.rejected {
+      background: #ff3b30;
+      color: #fff;
+    }
+
+    .status-badge.blocked {
+      background: #8e8e93;
+      color: #fff;
+    }
+
+    /* Чипы в админке */
+    .admin-tab {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .admin-tab button {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--tg-theme-secondary-bg-color);
+      background: var(--tg-theme-bg-color);
+      color: var(--tg-theme-text-color);
+      font-size: 13px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .admin-tab button.active {
+      background: var(--tg-theme-button-color);
+      color: var(--tg-theme-button-text-color);
+      border-color: var(--tg-theme-button-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Загрузка -->
+    <div id="loading" class="text-center" style="padding: 60px 0;">
+      <div class="skeleton" style="width: 60%; height: 28px; margin: 0 auto 16px;"></div>
+      <div class="skeleton" style="width: 100%; height: 48px; margin-bottom: 16px;"></div>
+      <div class="skeleton" style="width: 100%; height: 120px; margin-bottom: 12px;"></div>
+      <div class="skeleton" style="width: 100%; height: 120px;"></div>
+    </div>
+
+    <!-- Контент -->
+    <div id="content" class="hidden"></div>
+  </div>
+
+  <!-- Нижняя навигация -->
+  <nav class="bottom-nav hidden" id="bottomNav"></nav>
+
+  <!-- Модалка -->
+  <div id="modalContainer"></div>
+
+  <script>
+    // ============================================================
+    // КОНФИГУРАЦИЯ SUPABASE
+    // ============================================================
+    const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+    // Инициализация Supabase
+    let supabaseClient = null;
+    try {
+      if (SUPABASE_URL !== 'https://YOUR_PROJECT.supabase.co') {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn('Supabase не подключён, работаем в демо-режиме');
+    }
+
+    // ============================================================
+    // TELEGRAM WEBAPP
+    // ============================================================
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      // Применяем тему Telegram
+      if (tg.colorScheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+      tg.onEvent('themeChanged', () => {
+        if (tg.colorScheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      });
+    }
+
+    // ============================================================
+    // СОСТОЯНИЕ ПРИЛОЖЕНИЯ
+    // ============================================================
+    const state = {
+      user: null,           // { id, first_name, last_name, username, photo_url }
+      role: 'guest',        // admin | moderator | client | provider | guest
+      currentPage: 'home',  // home | catalog | profile | provider | admin
+      currentProvider: null,
+      searchQuery: '',
+      filters: { category: 'all', minRating: 0 },
+      providers: [],
+      categories: ['Все', 'Сантехника', 'Электрика', 'Ремонт', 'Уборка', 'Красота', 'IT', 'Репетиторы', 'Грузчики'],
+      // Демо-данные (если нет Supabase)
+      demoProviders: [
+        { id: 1, name: 'Иван Петров', service: 'Сантехник', category: 'Сантехника', rating: 4.8, reviews: 124, price: 'от 1500 ₽', desc: 'Ремонт труб, установка сантехники, устранение протечек. Работаю 10 лет.', verified: true, avatar: '', tags: ['Срочно', 'Выезд 24/7'], status: 'approved', telegram_id: 1001 },
+        { id: 2, name: 'Анна Смирнова', service: 'Уборка квартир', category: 'Уборка', rating: 4.9, reviews: 89, price: 'от 2000 ₽', desc: 'Генеральная уборка, поддерживающая уборка, мытьё окон. Экологичные средства.', verified: true, avatar: '', tags: ['Эко', 'Дети'], status: 'approved', telegram_id: 1002 },
+        { id: 3, name: 'Сергей Иванов', service: 'Электрик', category: 'Электрика', rating: 4.6, reviews: 210, price: 'от 1000 ₽', desc: 'Замена проводки, установка розеток, подключение бытовой техники.', verified: true, avatar: '', tags: ['Срочно', 'Гарантия'], status: 'approved', telegram_id: 1003 },
+        { id: 4, name: 'Елена Козлова', service: 'Мастер маникюра', category: 'Красота', rating: 5.0, reviews: 56, price: 'от 2500 ₽', desc: 'Маникюр, педикюр, наращивание. Стерильные инструменты, уютная студия.', verified: false, avatar: '', tags: ['Ногти', 'Студия'], status: 'pending', telegram_id: 1004 },
+        { id: 5, name: 'Дмитрий Волков', service: 'Репетитор по математике', category: 'Репетиторы', rating: 4.7, reviews: 73, price: 'от 1200 ₽/час', desc: 'Подготовка к ЕГЭ/ОГЭ, олимпиады. Онлайн и офлайн.', verified: true, avatar: '', tags: ['ЕГЭ', 'Онлайн'], status: 'approved', telegram_id: 1005 },
+        { id: 6, name: 'Олег Соколов', service: 'Грузчик', category: 'Грузчики', rating: 4.5, reviews: 34, price: 'от 800 ₽/час', desc: 'Погрузка, разгрузка, переезды. Аккуратно и быстро.', verified: false, avatar: '', tags: ['Переезд', 'Срочно'], status: 'approved', telegram_id: 1006 }
+      ]
+    };
+
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    function showLoading() {
+      $('#loading').classList.remove('hidden');
+      $('#content').classList.add('hidden');
+      $('#bottomNav').classList.add('hidden');
+    }
+
+    function hideLoading() {
+      $('#loading').classList.add('hidden');
+      $('#content').classList.remove('hidden');
+      $('#bottomNav').classList.remove('hidden');
+    }
+
+    function navigate(page, data = null) {
+      state.currentPage = page;
+      if (data) Object.assign(state, data);
+      render();
+    }
+
+    function showModal(html) {
+      const container = $('#modalContainer');
+      container.innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal">${html}</div>
+        </div>
+      `;
+    }
+
+    function closeModal() {
+      $('#modalContainer').innerHTML = '';
+    }
+
+    function getRoleLabel(role) {
+      const labels = {
+        admin: 'Администратор',
+        moderator: 'Модератор',
+        client: 'Клиент',
+        provider: 'Исполнитель',
+        guest: 'Гость'
+      };
+      return labels[role] || 'Гость';
+    }
+
+    function getRoleColor(role) {
+      const colors = {
+        admin: '#ff3b30',
+        moderator: '#ff9500',
+        client: '#007aff',
+        provider: '#34c759',
+        guest: '#8e8e93'
+      };
+      return colors[role] || '#8e8e93';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"]/g, (m) => {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+        return map[m];
+      });
+    }
+
+    // ============================================================
+    // АУТЕНТИФИКАЦИЯ И РОЛЬ
+    // ============================================================
+    async function initAuth() {
+      // Получаем данные из Telegram
+      if (tg?.initDataUnsafe?.user) {
+        const u = tg.initDataUnsafe.user;
+        state.user = {
+          id: u.id,
+          first_name: u.first_name || '',
+          last_name: u.last_name || '',
+          username: u.username || '',
+          photo_url: u.photo_url || ''
+        };
+      } else {
+        // Демо-пользователь для разработки
+        state.user = {
+          id: 123456789,
+          first_name: 'Демо',
+          last_name: 'Пользователь',
+          username: 'demo_user',
+          photo_url: ''
+        };
+      }
+
+      // Определяем роль
+      if (supabaseClient && state.user?.id) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('users')
+            .select('role')
+            .eq('telegram_id', state.user.id)
+            .maybeSingle();
+
+          if (!error && data?.role) {
+            state.role = data.role;
+          } else {
+            // Новый пользователь — клиент по умолчанию
+            state.role = 'client';
+            await supabaseClient.from('users').insert({
+              telegram_id: state.user.id,
+              first_name: state.user.first_name,
+              last_name: state.user.last_name,
+              username: state.user.username,
+              role: 'client'
+            });
+          }
+        } catch (e) {
+          console.warn('Ошибка авторизации:', e);
+          state.role = 'client';
+        }
+      } else {
+        // Демо-режим: роль можно менять через localStorage
+        const savedRole = localStorage.getItem('uslugan_demo_role');
+        state.role = savedRole || 'client';
+      }
+
+      // Загружаем исполнителей
+      await loadProviders();
+    }
+
+    async function loadProviders() {
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('providers')
+            .select('*')
+            .order('rating', { ascending: false });
+
+          if (!error && data) {
+            state.providers = data;
+            return;
+          }
+        } catch (e) {
+          console.warn('Ошибка загрузки исполнителей:', e);
+        }
+      }
+      // Демо-данные
+      state.providers = [...state.demoProviders];
+    }
+
+    function changeDemoRole(role) {
+      state.role = role;
+      localStorage.setItem('uslugan_demo_role', role);
+      render();
+    }
+
+    // ============================================================
+    // ФИЛЬТРАЦИЯ
+    // ============================================================
+    function getFilteredProviders() {
+      let list = [...state.providers];
+
+      // Поиск
+      if (state.searchQuery) {
+        const q = state.searchQuery.toLowerCase();
+        list = list.filter(p =>
+          p.name.toLowerCase().includes(q) ||
+          p.service.toLowerCase().includes(q) ||
+          p.desc.toLowerCase().includes(q) ||
+          (p.tags || []).some(t => t.toLowerCase().includes(q))
+        );
+      }
+
+      // Категория
+      if (state.filters.category && state.filters.category !== 'Все') {
+        list = list.filter(p => p.category === state.filters.category);
+      }
+
+      // Рейтинг
+      if (state.filters.minRating > 0) {
+        list = list.filter(p => p.rating >= state.filters.minRating);
+      }
+
+      // Для гостей и клиентов — только approved
+      if (state.role === 'guest' || state.role === 'client') {
+        list = list.filter(p => p.status === 'approved');
+      }
+
+      return list;
+    }
+
+    // ============================================================
+    // РЕНДЕР СТРАНИЦ
+    // ============================================================
+    function render() {
+      hideLoading();
+      renderBottomNav();
+
+      switch (state.currentPage) {
+        case 'home': renderHome(); break;
+        case 'catalog': renderCatalog(); break;
+        case 'profile': renderProfile(); break;
+        case 'provider': renderProviderCard(); break;
+        case 'admin': renderAdmin(); break;
+        default: renderHome();
+      }
+
+      // Обновляем шапку Telegram
+      if (tg) {
+        tg.MainButton.hide();
+        tg.BackButton.hide();
+        if (state.currentPage !== 'home') {
+          tg.BackButton.show();
+          tg.BackButton.onClick(() => navigate('home'));
+        }
+      }
+    }
+
+    // ============================================================
+    // НИЖНЯЯ НАВИГАЦИЯ
+    // ============================================================
+    function renderBottomNav() {
+      const nav = $('#bottomNav');
+      const items = [
+        { id: 'home', icon: '🏠', label: 'Главная' },
+        { id: 'catalog', icon: '🔍', label: 'Каталог' },
+        { id: 'profile', icon: '👤', label: 'Профиль' }
+      ];
+
+      if (state.role === 'admin' || state.role === 'moderator') {
+        items.push({ id: 'admin', icon: '🛡️', label: 'Админ' });
+      }
+
+      nav.innerHTML = items.map(item => `
+        <button class="nav-item ${state.currentPage === item.id ? 'active' : ''}" onclick="navigate('${item.id}')">
+          <span class="nav-icon">${item.icon}</span>
+          <span>${item.label}</span>
+        </button>
+      `).join('');
+    }
+
+    // ============================================================
+    // ГЛАВНАЯ
+    // ============================================================
+    function renderHome() {
+      const filtered = getFilteredProviders();
+      const content = $('#content');
+
+      content.innerHTML = `
+        <div class="header">
+          <h1>Услуган</h1>
+          <span class="role-badge" style="background: ${getRoleColor(state.role)}">${getRoleLabel(state.role)}</span>
+        </div>
+
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input type="text" placeholder="Найти услугу или исполнителя..." 
+                 value="${escapeHtml(state.searchQuery)}"
+                 oninput="onSearch(this.value)">
+        </div>
+
+        <div class="flex-between mb-16">
+          <h2 style="font-size: 18px;">Популярные услуги</h2>
+          <button class="btn btn-outline btn-small" onclick="navigate('catalog')">Все →</button>
+        </div>
+
+        ${filtered.length === 0 ? `
+          <div class="empty-state">
+            <div class="emoji">🔎</div>
+            <p>Ничего не найдено</p>
+            <p class="text-hint" style="margin-top: 8px;">Попробуйте изменить запрос</p>
+          </div>
+        ` : filtered.slice(0, 5).map(p => renderProviderCardHTML(p)).join('')}
+
+        ${state.role === 'guest' ? `
+          <div class="card mt-16 text-center" style="border: 2px dashed var(--tg-theme-button-color);">
+            <p style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">Хотите стать исполнителем?</p>
+            <p class="text-hint" style="margin-bottom: 12px;">Разместите свою услугу и получайте клиентов</p>
+            <button class="btn" onclick="changeDemoRole('provider')">Стать исполнителем</button>
+          </div>
+        ` : ''}
+
+        ${state.role === 'provider' ? `
+          <div class="card mt-16">
+            <p style="font-weight: 600; margin-bottom: 8px;">💼 Ваш профиль исполнителя</p>
+            <p class="text-hint mb-16">Управляйте услугами и отзывами</p>
+            <button class="btn btn-outline" onclick="navigate('profile')">Перейти в кабинет</button>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    function onSearch(value) {
+      state.searchQuery = value;
+      if (state.currentPage === 'home') {
+        renderHome();
+      } else {
+        renderCatalog();
+      }
+    }
+
+    // ============================================================
+    // КАТАЛОГ
+    // ============================================================
+    function renderCatalog() {
+      const filtered = getFilteredProviders();
+      const content = $('#content');
+
+      content.innerHTML = `
+        <div class="header">
+          <h1>Каталог</h1>
+          <span class="role-badge" style="background: ${getRoleColor(state.role)}">${getRoleLabel(state.role)}</span>
+        </div>
+
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input type="text" placeholder="Поиск услуг..." 
+                 value="${escapeHtml(state.searchQuery)}"
+                 oninput="onSearch(this.value)">
+        </div>
+
+        <div class="filters">
+          ${state.categories.map(cat => `
+            <div class="filter-chip ${state.filters.category === cat ? 'active' : ''}"
+                 onclick="setCategory('${cat}')">${cat}</div>
+          `).join('')}
+        </div>
+
+        <div class="filters">
+          ${[0, 4, 4.5, 4.8].map(r => `
+            <div class="filter-chip ${state.filters.minRating === r ? 'active' : ''}"
+                 onclick="setMinRating(${r})">${r === 0 ? 'Любой рейтинг' : `⭐ ${r}+`}</div>
+          `).join('')}
+        </div>
+
+        <p class="text-hint mb-16">Найдено: ${filtered.length}</p>
+
+        ${filtered.length === 0 ? `
+          <div class="empty-state">
+            <div class="emoji">😕</div>
+            <p>Ничего не найдено</p>
+            <button class="btn btn-outline btn-small mt-16" onclick="resetFilters()">Сбросить фильтры</button>
+          </div>
+        ` : filtered.map(p => renderProviderCardHTML(p)).join('')}
+      `;
+    }
+
+    function setCategory(cat) {
+      state.filters.category = cat;
+      renderCatalog();
+    }
+
+    function setMinRating(r) {
+      state.filters.minRating = r;
+      renderCatalog();
+    }
+
+    function resetFilters() {
+      state.filters = { category: 'Все', minRating: 0 };
+      state.searchQuery = '';
+      renderCatalog();
+    }
+
+    // ============================================================
+    // КАРТОЧКА ИСПОЛНИТЕЛЯ (превью в списке)
+    // ============================================================
+    function renderProviderCardHTML(p) {
+      const isOwner = state.role === 'provider' && state.user?.id === p.telegram_id;
+      const canEdit = isOwner || state.role === 'admin' || state.role === 'moderator';
+
+      return `
+        <div class="card" onclick="openProvider(${p.id})">
+          <div class="card-header">
+            <div class="avatar">
+              ${p.avatar ? `<img src="${escapeHtml(p.avatar)}" alt="">` : (p.name?.charAt(0) || '?')}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="flex-between">
+                <div class="card-title">${escapeHtml(p.name)} ${p.verified ? '✅' : ''}</div>
+                <span class="rating">⭐ ${p.rating}</span>
+              </div>
+              <div class="card-subtitle">${escapeHtml(p.service)}</div>
+            </div>
+          </div>
+          <div class="card-desc">${escapeHtml(p.desc)}</div>
+          <div class="flex-between mt-16">
+            <div class="tags" style="margin-top: 0;">
+              ${(p.tags || []).slice(0, 3).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+            <span style="font-weight: 700; font-size: 15px; color: var(--tg-theme-link-color); white-space: nowrap;">${escapeHtml(p.price)}</span>
+          </div>
+          ${canEdit ? `
+            <button class="btn btn-outline btn-small mt-16" onclick="event.stopPropagation(); openEditModal(${p.id})">✏️ Редактировать</button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // ============================================================
+    // СТРАНИЦА ИСПОЛНИТЕЛЯ
+    // ============================================================
+    function openProvider(id) {
+      const provider = state.providers.find(p => p.id === id);
+      if (!provider) return;
+      state.currentProvider = provider;
+      navigate('provider');
+    }
+
+    function renderProviderCard() {
+      const p = state.currentProvider;
+      if (!p) { navigate('home'); return; }
+
+      const isOwner = state.role === 'provider' && state.user?.id === p.telegram_id;
+      const canEdit = isOwner || state.role === 'admin' || state.role === 'moderator';
+      const content = $('#content');
+
+      // Демо-отзывы
+      const reviews = [
+        { author: 'Мария К.', rating: 5, text: 'Отличная работа! Всё сделано быстро и качественно.' },
+        { author: 'Алексей П.', rating: 4, text: 'Хороший специалист, рекомендую. Немного опоздал, но результат отличный.' },
+        { author: 'Ольга С.', rating: 5, text: 'Профессионал своего дела. Буду обращаться ещё!' }
+      ];
+
+      content.innerHTML = `
+        <button class="btn btn-outline btn-small mb-16" onclick="navigate('home')" style="width: auto;">← Назад</button>
+
+        <div class="card">
+          <div class="card-header" style="gap: 16px;">
+            <div class="avatar" style="width: 72px; height: 72px; font-size: 28px;">
+              ${p.avatar ? `<img src="${escapeHtml(p.avatar)}" alt="">` : (p.name?.charAt(0) || '?')}
+            </div>
+            <div style="flex: 1;">
+              <div class="card-title" style="font-size: 20px;">${escapeHtml(p.name)} ${p.verified ? '✅' : ''}</div>
+              <div class="card-subtitle" style="font-size: 15px; margin-top: 4px;">${escapeHtml(p.service)}</div>
+              <div class="rating" style="margin-top: 6px;">
+                <span>⭐ ${p.rating}</span>
+                <span class="text-hint">(${p.reviews} отзывов)</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--tg-theme-bg-color);">
+            <div class="flex-between mb-16">
+              <span style="font-weight: 700; font-size: 18px; color: var(--tg-theme-link-color);">${escapeHtml(p.price)}</span>
+              <span class="status-badge ${p.status}">${p.status === 'approved' ? 'Одобрен' : p.status === 'pending' ? 'На модерации' : p.status === 'rejected' ? 'Отклонён' : 'Заблокирован'}</span>
+            </div>
+
+            <div class="card-desc" style="margin-bottom: 16px;">${escapeHtml(p.desc)}</div>
+
+            <div class="tags">
+              ${(p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+
+            <div class="mt-16">
+              <p class="text-hint mb-16">Категория: ${escapeHtml(p.category)}</p>
+            </div>
+
+            ${state.role === 'client' ? `
+              <button class="btn mt-16" onclick="contactProvider()">💬 Связаться</button>
+            ` : ''}
+
+            ${canEdit ? `
+              <button class="btn btn-outline mt-16" onclick="openEditModal(${p.id})">✏️ Редактировать профиль</button>
+            ` : ''}
+
+            ${(state.role === 'admin') ? `
+              <button class="btn btn-danger mt-16" onclick="blockProvider(${p.id})">🚫 Заблокировать</button>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Отзывы -->
+        <div class="card">
+          <h3 style="font-size: 16px; margin-bottom: 12px;">Отзывы (${reviews.length})</h3>
+          ${reviews.map(r => `
+            <div class="review">
+              <div class="flex-between">
+                <span class="review-author">${escapeHtml(r.author)}</span>
+                <span class="rating">${'⭐'.repeat(r.rating)}</span>
+              </div>
+              <div class="review-text">${escapeHtml(r.text)}</div>
+            </div>
+          `).join('')}
+          <button class="btn btn-outline btn-small mt-16" onclick="alert('Форма отзыва будет доступна клиентам')">Оставить отзыв</button>
+        </div>
+      `;
+    }
+
+    // ============================================================
+    // МОДАЛКА РЕДАКТИРОВАНИЯ
+    // ============================================================
+    function openEditModal(id) {
+      const p = state.providers.find(x => x.id === id);
+      if (!p) return;
+
+      showModal(`
+        <h2 style="font-size: 20px; margin-bottom: 16px;">Редактирование профиля</h2>
+        <div class="form-group">
+          <label>Имя / Название</label>
+          <input id="edit-name" value="${escapeHtml(p.name)}">
+        </div>
+        <div class="form-group">
+          <label>Услуга</label>
+          <input id="edit-service" value="${escapeHtml(p.service)}">
+        </div>
+        <div class="form-group">
+          <label>Описание</label>
+          <textarea id="edit-desc">${escapeHtml(p.desc)}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Цена</label>
+          <input id="edit-price" value="${escapeHtml(p.price)}">
+        </div>
+        <div class="form-group">
+          <label>Категория</label>
+          <select id="edit-category">
+            ${state.categories.filter(c => c !== 'Все').map(c => `
+              <option value="${c}" ${p.category === c ? 'selected' : ''}>${c}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Теги (через запятую)</label>
+          <input id="edit-tags" value="${(p.tags || []).join(', ')}">
+        </div>
+        <div class="flex gap-8 mt-16">
+          <button class="btn btn-outline" onclick="closeModal()">Отмена</button>
+          <button class="btn" onclick="saveEdit(${id})">Сохранить</button>
+        </div>
+        ${state.role === 'provider' ? `
+          <button class="btn btn-danger mt-16" onclick="deleteProvider(${id})">Удалить профиль</button>
+        ` : ''}
+      `);
+    }
+
+    async function saveEdit(id) {
+      const p = state.providers.find(x => x.id === id);
+      if (!p) return;
+
+      p.name = $('#edit-name').value.trim();
+      p.service = $('#edit-service').value.trim();
+      p.desc = $('#edit-desc').value.trim();
+      p.price = $('#edit-price').value.trim();
+      p.category = $('#edit-category').value;
+      p.tags = $('#edit-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+
+      // Сохранение в Supabase
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('providers').update({
+            name: p.name,
+            service: p.service,
+            description: p.desc,
+            price: p.price,
+            category: p.category,
+            tags: p.tags
+          }).eq('id', p.id);
+        } catch (e) {
+          console.warn('Ошибка сохранения:', e);
+        }
+      }
+
+      closeModal();
+      if (state.currentPage === 'provider') {
+        renderProviderCard();
+      } else {
+        render();
+      }
+      if (tg) tg.showAlert('Профиль сохранён ✅');
+    }
+
+    async function deleteProvider(id) {
+      if (!confirm('Удалить профиль исполнителя?')) return;
+
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('providers').delete().eq('id', id);
+        } catch (e) {
+          console.warn('Ошибка удаления:', e);
+        }
+      }
+
+      state.providers = state.providers.filter(x => x.id !== id);
+      closeModal();
+      navigate('home');
+      if (tg) tg.showAlert('Профиль удалён');
+    }
+
+    async function blockProvider(id) {
+      const p = state.providers.find(x => x.id === id);
+      if (!p) return;
+      p.status = 'blocked';
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('providers').update({ status: 'blocked' }).eq('id', id);
+        } catch (e) {
+          console.warn('Ошибка блокировки:', e);
+        }
+      }
+      closeModal();
+      render();
+      if (tg) tg.showAlert('Исполнитель заблокирован');
+    }
+
+    function contactProvider() {
+      if (tg) {
+        tg.showAlert('Функция связи будет доступна после подключения к Supabase');
+      } else {
+        alert('Функция связи будет доступна после подключения к Supabase');
+      }
+    }
+
+    // ============================================================
+    // ЛИЧНЫЙ КАБИНЕТ
+    // ============================================================
+    function renderProfile() {
+      const u = state.user || {};
+      const content = $('#content');
+
+      // Статистика для исполнителя
+      let providerStats = null;
+      if (state.role === 'provider') {
+        const myProviders = state.providers.filter(p => p.telegram_id === u.id);
+        providerStats = {
+          count: myProviders.length,
+          approved: myProviders.filter(p => p.status === 'approved').length,
+          pending: myProviders.filter(p => p.status === 'pending').length
+        };
+      }
+
+      content.innerHTML = `
+        <div class="header">
+          <h1>Личный кабинет</h1>
+          <span class="role-badge" style="background: ${getRoleColor(state.role)}">${getRoleLabel(state.role)}</span>
+        </div>
+
+        <!-- Профиль -->
+        <div class="card">
+          <div class="card-header" style="gap: 16px;">
+            <div class="avatar" style="width: 64px; height: 64px; font-size: 24px;">
+              ${u.photo_url ? `<img src="${escapeHtml(u.photo_url)}" alt="">` : (u.first_name?.charAt(0) || '?')}
+            </div>
+            <div>
+              <div class="card-title" style="font-size: 18px;">${escapeHtml(u.first_name || '')} ${escapeHtml(u.last_name || '')}</div>
+              <div class="card-subtitle">@${escapeHtml(u.username || 'username')}</div>
+              <div class="card-subtitle" style="margin-top: 2px;">ID: ${u.id || '—'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Статистика исполнителя -->
+        ${providerStats ? `
+          <div class="card">
+            <h3 style="font-size: 16px; margin-bottom: 12px;">📊 Мои услуги</h3>
+            <div class="flex-between text-center">
+              <div style="flex: 1;">
+                <div style="font-size: 24px; font-weight: 700;">${providerStats.count}</div>
+                <div class="text-hint">Всего</div>
+              </div>
+              <div style="flex: 1;">
+                <div style="font-size: 24px; font-weight: 700; color: #34c759;">${providerStats.approved}</div>
+                <div class="text-hint">Активных</div>
+              </div>
+              <div style="flex: 1;">
+                <div style="font-size: 24px; font-weight: 700; color: #ff9500;">${providerStats.pending}</div>
+                <div class="text-hint">На модерации</div>
+              </div>
+            </div>
+            <button class="btn mt-16" onclick="openCreateProviderModal()">+ Добавить услугу</button>
+          </div>
+        ` : ''}
+
+        <!-- Настройки -->
+        <div class="card">
+          <h3 style="font-size: 16px; margin-bottom: 12px;">⚙️ Настройки</h3>
+
+          <div class="flex-between mb-16" style="padding: 8px 0;">
+            <div>
+              <div style="font-weight: 500;">Уведомления</div>
+              <div class="text-hint">Получать уведомления о заказах</div>
+            </div>
+            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+          </div>
+
+          <div class="flex-between mb-16" style="padding: 8px 0;">
+            <div>
+              <div style="font-weight: 500;">Тёмная тема</div>
+              <div class="text-hint">Использовать тёмное оформление</div>
+            </div>
+            <div class="toggle ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'active' : ''}" 
+                 onclick="toggleTheme(this)"></div>
+          </div>
+
+          <div class="flex-between" style="padding: 8px 0;">
+            <div>
+              <div style="font-weight: 500;">Показывать контакты</div>
+              <div class="text-hint">Видно клиентам</div>
+            </div>
+            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+          </div>
+        </div>
+
+        <!-- Смена демо-роли (только для разработки) -->
+        ${!supabaseClient ? `
+          <div class="card" style="border: 1px dashed var(--tg-theme-hint-color);">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--tg-theme-hint-color);">🛠 Демо-режим: смена роли</h3>
+            <div class="filters" style="margin-bottom: 0;">
+              ${['guest', 'client', 'provider', 'moderator', 'admin'].map(r => `
+                <div class="filter-chip ${state.role === r ? 'active' : ''}" onclick="changeDemoRole('${r}')">
+                  ${getRoleLabel(r)}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- О приложении -->
+        <div class="card text-center">
+          <p class="text-hint">Услуган v1.0.0</p>
+          <p class="text-hint" style="margin-top: 4px;">Поиск услуг и продвижение исполнителей</p>
+          ${supabaseClient ? '<p class="text-hint" style="margin-top: 8px; color: #34c759;">✅ Подключено к Supabase</p>' : '<p class="text-hint" style="margin-top: 8px; color: #ff9500;">⚠️ Демо-режим (Supabase не настроен)</p>'}
+        </div>
+      `;
+    }
+
+    function toggleTheme(el) {
+      el.classList.toggle('active');
+      if (el.classList.contains('active')) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    }
+
+    // ============================================================
+    // АДМИН-ПАНЕЛЬ
+    // ============================================================
+    function renderAdmin() {
+      const content = $('#content');
+      const pending = state.providers.filter(p => p.status === 'pending');
+      const approved = state.providers.filter(p => p.status === 'approved');
+      const blocked = state.providers.filter(p => p.status === 'blocked');
+
+      content.innerHTML = `
+        <div class="header">
+          <h1>Админ-панель</h1>
+          <span class="role-badge" style="background: ${getRoleColor(state.role)}">${getRoleLabel(state.role)}</span>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size: 16px; margin-bottom: 12px;">📊 Статистика</h3>
+          <div class="flex-between text-center">
+            <div style="flex: 1;">
+              <div style="font-size: 24px; font-weight: 700;">${state.providers.length}</div>
+              <div class="text-hint">Всего</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 24px; font-weight: 700; color: #34c759;">${approved.length}</div>
+              <div class="text-hint">Активных</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 24px; font-weight: 700; color: #ff9500;">${pending.length}</div>
+              <div class="text-hint">На модерации</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 24px; font-weight: 700; color: #ff3b30;">${blocked.length}</div>
+              <div class="text-hint">Заблокировано</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab">
+          <button class="active" onclick="switchAdminTab('pending', this)">На модерации (${pending.length})</button>
+          <button onclick="switchAdminTab('approved', this)">Активные (${approved.length})</button>
+          <button onclick="switchAdminTab('blocked', this)">Заблокированные (${blocked.length})</button>
+        </div>
+
+        <div id="adminList">
+          ${renderAdminList(pending)}
+        </div>
+      `;
+    }
+
+    function switchAdminTab(tab, btn) {
+      $$('.admin-tab button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      let list;
+      if (tab === 'pending') list = state.providers.filter(p => p.status === 'pending');
+      else if (tab === 'approved') list = state.providers.filter(p => p.status === 'approved');
+      else list = state.providers.filter(p => p.status === 'blocked');
+
+      $('#adminList').innerHTML = renderAdminList(list);
+    }
+
+    function renderAdminList(list) {
+      if (list.length === 0) {
+        return `<div class="empty-state"><div class="emoji">📭</div><p>Список пуст</p></div>`;
+      }
+
+      return list.map(p => `
+        <div class="card">
+          <div class="card-header">
+            <div class="avatar">${p.name?.charAt(0) || '?'}</div>
+            <div style="flex: 1;">
+              <div class="flex-between">
+                <div class="card-title">${escapeHtml(p.name)}</div>
+                <span class="status-badge ${p.status}">${p.status === 'pending' ? 'На модерации' : p.status === 'approved' ? 'Активен' : 'Заблокирован'}</span>
+              </div>
+              <div class="card-subtitle">${escapeHtml(p.service)}</div>
+            </div>
+          </div>
+          <div class="card-desc">${escapeHtml(p.desc).slice(0, 100)}...</div>
+          <div class="flex gap-8 mt-16">
+            ${p.status === 'pending' ? `
+              <button class="btn btn-small" style="background: #34c759;" onclick="moderateProvider(${p.id}, 'approved')">✅ Одобрить</button>
+              <button class="btn btn-small btn-danger" onclick="moderateProvider(${p.id}, 'rejected')">❌ Отклонить</button>
+            ` : p.status === 'approved' ? `
+              <button class="btn btn-small btn-danger" onclick="moderateProvider(${p.id}, 'blocked')">🚫 Заблокировать</button>
+            ` : `
+              <button class="btn btn-small" onclick="moderateProvider(${p.id}, 'approved')">🔄 Восстановить</button>
+            `}
+            <button class="btn btn-small btn-outline" onclick="openEditModal(${p.id})">✏️ Ред.</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function moderateProvider(id, status) {
+      const p = state.providers.find(x => x.id === id);
+      if (!p) return;
+
+      p.status = status;
+
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('providers').update({ status }).eq('id', id);
+        } catch (e) {
+          console.warn('Ошибка модерации:', e);
+        }
+      }
+
+      renderAdmin();
+      if (tg) tg.showAlert(status === 'approved' ? '✅ Одобрено' : status === 'rejected' ? '❌ Отклонено' : '🚫 Заблокировано');
+    }
+
+    // ============================================================
+    // СОЗДАНИЕ УСЛУГИ
+    // ============================================================
+    function openCreateProviderModal() {
+      showModal(`
+        <h2 style="font-size: 20px; margin-bottom: 16px;">Новая услуга</h2>
+        <div class="form-group">
+          <label>Имя / Название</label>
+          <input id="new-name" placeholder="Иван Петров" value="${escapeHtml(state.user?.first_name || '')}">
+        </div>
+        <div class="form-group">
+          <label>Услуга</label>
+          <input id="new-service" placeholder="Сантехник">
+        </div>
+        <div class="form-group">
+          <label>Описание</label>
+          <textarea id="new-desc" placeholder="Опишите ваши услуги..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Цена</label>
+          <input id="new-price" placeholder="от 1500 ₽">
+        </div>
+        <div class="form-group">
+          <label>Категория</label>
+          <select id="new-category">
+            ${state.categories.filter(c => c !== 'Все').map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Теги (через запятую)</label>
+          <input id="new-tags" placeholder="Срочно, Гарантия">
+        </div>
+        <div class="flex gap-8 mt-16">
+          <button class="btn btn-outline" onclick="closeModal()">Отмена</button>
+          <button class="btn" onclick="createProvider()">Создать</button>
+        </div>
+      `);
+    }
+
+    async function createProvider() {
+      const name = $('#new-name').value.trim();
+      const service = $('#new-service').value.trim();
+      const desc = $('#new-desc').value.trim();
+      const price = $('#new-price').value.trim();
+      const category = $('#new-category').value;
+      const tags = $('#new-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+
+      if (!name || !service) {
+        if (tg) tg.showAlert('Заполните имя и услугу');
+        else alert('Заполните имя и услугу');
+        return;
+      }
+
+      const newProvider = {
+        id: Date.now(),
+        name,
+        service,
+        desc,
+        price: price || 'договорная',
+        category,
+        tags,
+        rating: 0,
+        reviews: 0,
+        verified: false,
+        avatar: '',
+        status: state.role === 'admin' ? 'approved' : 'pending',
+        telegram_id: state.user?.id
+      };
+
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient.from('providers').insert({
+            telegram_id: state.user?.id,
+            name,
+            service,
+            description: desc,
+            price: price || 'договорная',
+            category,
+            tags,
+            status: state.role === 'admin' ? 'approved' : 'pending'
+          }).select().single();
+
+          if (!error && data) {
+            newProvider.id = data.id;
+          }
+        } catch (e) {
+          console.warn('Ошибка создания:', e);
+        }
+      }
+
+      state.providers.push(newProvider);
+      closeModal();
+      render();
+      if (tg) tg.showAlert('Услуга создана! ' + (state.role !== 'admin' ? 'Ожидает модерации' : ''));
+    }
+
+    // ============================================================
+    // ЗАПУСК
+    // ============================================================
+    async function init() {
+      showLoading();
+      await initAuth();
+      hideLoading();
+      render();
+    }
+
+    // Глобальные функции для onclick
+    window.navigate = navigate;
+    window.openProvider = openProvider;
+    window.openEditModal = openEditModal;
+    window.saveEdit = saveEdit;
+    window.deleteProvider = deleteProvider;
+    window.blockProvider = blockProvider;
+    window.contactProvider = contactProvider;
+    window.onSearch = onSearch;
+    window.setCategory = setCategory;
+    window.setMinRating = setMinRating;
+    window.resetFilters = resetFilters;
+    window.changeDemoRole = changeDemoRole;
+    window.toggleTheme = toggleTheme;
+    window.switchAdminTab = switchAdminTab;
+    window.moderateProvider = moderateProvider;
+    window.openCreateProviderModal = openCreateProviderModal;
+    window.createProvider = createProvider;
+    window.closeModal = closeModal;
+
+    // Старт
+    init();
+  </script>
+</body>
+</html>
