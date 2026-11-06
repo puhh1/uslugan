@@ -1,8 +1,8 @@
 {
   "build": {
     "env": {
-      "VITE_SUPABASE_URL": "@my_uslugan_supabase_url",
-      "VITE_SUPABASE_ANON_KEY": "@my_uslugan_supabase_anon_key"
+      "VITE_SUPABASE_URL": "@MY_USLUGAN_SUPABASE_URL",
+      "VITE_SUPABASE_ANON_KEY": "@MY_USLUGAN_SUPABASE_ANON_KEY"
     }
   }
 }
